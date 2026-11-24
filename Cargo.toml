@@ -36,7 +36,7 @@ rsa = { version = "0.9", features = ["pem"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["arbitrary_precision"] }
 schemars = "1"
-jsonschema = { version = "0.37", default-features = false }
+jsonschema = { version = "0.62", default-features = false }
 sha2 = "0.10"
 tempfile = "3"
 sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite", "macros"] }
