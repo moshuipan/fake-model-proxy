@@ -1,0 +1,55 @@
+# 构建产物
+/target
+
+# 测试与研发临时输出
+*.log
+/.tmp*/
+*.zip
+*.tar.gz
+*.crate
+/dist/
+
+# 真实请求抓包与本机调试脚本（含对话正文、图片、请求头与绝对路径）
+/dump/
+/.dump/
+/.screenshots/
+
+# 本地发布快照元数据
+/source-snapshot.json
+
+# 待评审的内部功能规划页（不属于公开源码白名单）
+/docs/requirements.html
+
+# 本地运行数据（数据库、日志）
+.fakemodelproxy/
+.minimax-oauth-preview/
+.minimax-refresh-test-*.db*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.jsonl
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# 编辑器与系统文件
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+*.orig
+
+# Python 工具缓存
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/

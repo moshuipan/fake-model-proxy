@@ -1,0 +1,2290 @@
+{
+  "api_version": "fmp/v2",
+  "apply": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "idempotency_key"
+    ],
+    "title": "ApplyInput",
+    "type": "object"
+  },
+  "change": {
+    "$defs": {
+      "AccountSpec": {
+        "additionalProperties": false,
+        "description": "账号身份和启停进入配置，正常 token 轮换只更新所引用的秘密。",
+        "properties": {
+          "credential": {
+            "$ref": "#/$defs/SecretRef"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "service_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "name",
+          "enabled",
+          "credential"
+        ],
+        "type": "object"
+      },
+      "GatewaySettings": {
+        "additionalProperties": false,
+        "description": "所有协议共用的执行预算，时间单位为毫秒。",
+        "properties": {
+          "auto_allow_paid_fallback": {
+            "default": false,
+            "description": "旧 default_auto_spread 字段反序列化时忽略，不能被误迁移为付费授权。",
+            "type": "boolean"
+          },
+          "backoff_base_ms": {
+            "default": 250,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "backoff_cap_ms": {
+            "default": 5000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "connect_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_capacity": {
+            "default": 4096,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_ttl_ms": {
+            "default": 1800000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idle_timeout_ms": {
+            "default": 120000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_attempts": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_capacity": {
+            "default": 128,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startup_timeout_ms": {
+            "default": 60000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets": {
+            "additionalProperties": {
+              "$ref": "#/$defs/TargetSettings"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "total_timeout_ms": {
+            "default": 600000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ModelAlias": {
+        "additionalProperties": false,
+        "description": "名称一经分配便绑定原模型；历史名称继续可调用。",
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "backend_id": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "model_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "backend_id",
+          "model_id",
+          "is_primary"
+        ],
+        "type": "object"
+      },
+      "ScheduleInput": {
+        "additionalProperties": false,
+        "description": "页面可编辑配置；不接收客户端提供的配置版本或时区。",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "random_minutes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "time": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "time",
+          "random_minutes"
+        ],
+        "type": "object"
+      },
+      "SecretRef": {
+        "additionalProperties": false,
+        "description": "引用服务器环境变量或宿主凭证库；不接收客户端文件路径。",
+        "properties": {
+          "secret_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret_ref"
+        ],
+        "type": "object"
+      },
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServiceCredentials": {
+        "additionalProperties": false,
+        "description": "API 密钥和请求头凭证只通过引用进入声明配置。",
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SecretRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/SecretRef"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ServiceSpec": {
+        "additionalProperties": false,
+        "description": "可单独提交的服务声明；版本变化不能被旧客户端静默忽略。",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/$defs/ServiceConfig"
+          },
+          "credentials": {
+            "$ref": "#/$defs/ServiceCredentials",
+            "default": {}
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_config_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/ServicePolicy",
+            "default": {
+              "candidate_models": [],
+              "comparison_scope": null,
+              "context_limit": null,
+              "cost_tier": "unknown",
+              "daily_token_budget": 0,
+              "default_output_tokens": 8192,
+              "image_tokens": 8192,
+              "input_limit": null,
+              "input_margin_percent": 5,
+              "input_margin_tokens": 1024,
+              "model_priority": {},
+              "priority": 100,
+              "provider_input_reserve": 1024,
+              "provider_output_reserve": null,
+              "qps": 0
+            }
+          }
+        },
+        "required": [
+          "api_version",
+          "kind",
+          "id",
+          "name",
+          "plugin_id",
+          "plugin_config_version",
+          "enabled",
+          "config"
+        ],
+        "type": "object"
+      },
+      "TargetSettings": {
+        "additionalProperties": false,
+        "description": "后端或账号的容量与新组分配权重；账号键使用 backend/account。",
+        "properties": {
+          "capacity": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "weight": {
+            "default": 1,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "配置变更采用明确的 upsert/remove，缺省数组表示保持已有内容。",
+    "properties": {
+      "accounts": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/AccountSpec"
+        },
+        "type": "array"
+      },
+      "checkin": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ScheduleInput"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "gateway": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GatewaySettings"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "model_aliases": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/ModelAlias"
+        },
+        "type": "array"
+      },
+      "remove_accounts": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "remove_services": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "services": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/ServiceSpec"
+        },
+        "type": "array"
+      }
+    },
+    "title": "ConfigChange",
+    "type": "object"
+  },
+  "configuration": {
+    "$defs": {
+      "AccountSpec": {
+        "additionalProperties": false,
+        "description": "账号身份和启停进入配置，正常 token 轮换只更新所引用的秘密。",
+        "properties": {
+          "credential": {
+            "$ref": "#/$defs/SecretRef"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "service_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "name",
+          "enabled",
+          "credential"
+        ],
+        "type": "object"
+      },
+      "GatewaySettings": {
+        "additionalProperties": false,
+        "description": "所有协议共用的执行预算，时间单位为毫秒。",
+        "properties": {
+          "auto_allow_paid_fallback": {
+            "default": false,
+            "description": "旧 default_auto_spread 字段反序列化时忽略，不能被误迁移为付费授权。",
+            "type": "boolean"
+          },
+          "backoff_base_ms": {
+            "default": 250,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "backoff_cap_ms": {
+            "default": 5000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "connect_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_capacity": {
+            "default": 4096,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_ttl_ms": {
+            "default": 1800000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idle_timeout_ms": {
+            "default": 120000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_attempts": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_capacity": {
+            "default": 128,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startup_timeout_ms": {
+            "default": 60000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets": {
+            "additionalProperties": {
+              "$ref": "#/$defs/TargetSettings"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "total_timeout_ms": {
+            "default": 600000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ModelAlias": {
+        "additionalProperties": false,
+        "description": "名称一经分配便绑定原模型；历史名称继续可调用。",
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "backend_id": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "model_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "backend_id",
+          "model_id",
+          "is_primary"
+        ],
+        "type": "object"
+      },
+      "ScheduleInput": {
+        "additionalProperties": false,
+        "description": "页面可编辑配置；不接收客户端提供的配置版本或时区。",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "random_minutes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "time": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "time",
+          "random_minutes"
+        ],
+        "type": "object"
+      },
+      "SecretRef": {
+        "additionalProperties": false,
+        "description": "引用服务器环境变量或宿主凭证库；不接收客户端文件路径。",
+        "properties": {
+          "secret_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret_ref"
+        ],
+        "type": "object"
+      },
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServiceCredentials": {
+        "additionalProperties": false,
+        "description": "API 密钥和请求头凭证只通过引用进入声明配置。",
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SecretRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/SecretRef"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ServiceSpec": {
+        "additionalProperties": false,
+        "description": "可单独提交的服务声明；版本变化不能被旧客户端静默忽略。",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/$defs/ServiceConfig"
+          },
+          "credentials": {
+            "$ref": "#/$defs/ServiceCredentials",
+            "default": {}
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_config_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/ServicePolicy",
+            "default": {
+              "candidate_models": [],
+              "comparison_scope": null,
+              "context_limit": null,
+              "cost_tier": "unknown",
+              "daily_token_budget": 0,
+              "default_output_tokens": 8192,
+              "image_tokens": 8192,
+              "input_limit": null,
+              "input_margin_percent": 5,
+              "input_margin_tokens": 1024,
+              "model_priority": {},
+              "priority": 100,
+              "provider_input_reserve": 1024,
+              "provider_output_reserve": null,
+              "qps": 0
+            }
+          }
+        },
+        "required": [
+          "api_version",
+          "kind",
+          "id",
+          "name",
+          "plugin_id",
+          "plugin_config_version",
+          "enabled",
+          "config"
+        ],
+        "type": "object"
+      },
+      "TargetSettings": {
+        "additionalProperties": false,
+        "description": "后端或账号的容量与新组分配权重；账号键使用 backend/account。",
+        "properties": {
+          "capacity": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "weight": {
+            "default": 1,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "一次可原子提交的完整配置，不包含连接进度或额度缓存。",
+    "properties": {
+      "accounts": {
+        "items": {
+          "$ref": "#/$defs/AccountSpec"
+        },
+        "type": "array"
+      },
+      "api_version": {
+        "type": "string"
+      },
+      "checkin": {
+        "$ref": "#/$defs/ScheduleInput"
+      },
+      "gateway": {
+        "$ref": "#/$defs/GatewaySettings"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "model_aliases": {
+        "items": {
+          "$ref": "#/$defs/ModelAlias"
+        },
+        "type": "array"
+      },
+      "services": {
+        "items": {
+          "$ref": "#/$defs/ServiceSpec"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "api_version",
+      "kind",
+      "services",
+      "accounts",
+      "model_aliases",
+      "gateway",
+      "checkin"
+    ],
+    "title": "ConfigDocument",
+    "type": "object"
+  },
+  "explain": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "路由解释只有请求形状，不需要私有对话正文，也不触发远程刷新。",
+    "properties": {
+      "images": {
+        "default": false,
+        "type": "boolean"
+      },
+      "input_tokens": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "model": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "output_tokens": {
+        "default": null,
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "tools": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "title": "ExplainInput",
+    "type": "object"
+  },
+  "operation": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "输入只包含动作参数；秘密写入使用独立接口，不进入操作历史。",
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      },
+      "input": {
+        "default": {}
+      },
+      "service_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "service_id",
+      "action",
+      "idempotency_key"
+    ],
+    "title": "OperationRequest",
+    "type": "object"
+  },
+  "plan": {
+    "$defs": {
+      "AccountSpec": {
+        "additionalProperties": false,
+        "description": "账号身份和启停进入配置，正常 token 轮换只更新所引用的秘密。",
+        "properties": {
+          "credential": {
+            "$ref": "#/$defs/SecretRef"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "service_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "name",
+          "enabled",
+          "credential"
+        ],
+        "type": "object"
+      },
+      "ConfigChange": {
+        "additionalProperties": false,
+        "description": "配置变更采用明确的 upsert/remove，缺省数组表示保持已有内容。",
+        "properties": {
+          "accounts": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AccountSpec"
+            },
+            "type": "array"
+          },
+          "checkin": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ScheduleInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "gateway": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GatewaySettings"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "model_aliases": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ModelAlias"
+            },
+            "type": "array"
+          },
+          "remove_accounts": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "remove_services": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "services": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ServiceSpec"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "GatewaySettings": {
+        "additionalProperties": false,
+        "description": "所有协议共用的执行预算，时间单位为毫秒。",
+        "properties": {
+          "auto_allow_paid_fallback": {
+            "default": false,
+            "description": "旧 default_auto_spread 字段反序列化时忽略，不能被误迁移为付费授权。",
+            "type": "boolean"
+          },
+          "backoff_base_ms": {
+            "default": 250,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "backoff_cap_ms": {
+            "default": 5000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "connect_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_capacity": {
+            "default": 4096,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group_ttl_ms": {
+            "default": 1800000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idle_timeout_ms": {
+            "default": 120000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_attempts": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_capacity": {
+            "default": 128,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "queue_timeout_ms": {
+            "default": 10000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startup_timeout_ms": {
+            "default": 60000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets": {
+            "additionalProperties": {
+              "$ref": "#/$defs/TargetSettings"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "total_timeout_ms": {
+            "default": 600000,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ModelAlias": {
+        "additionalProperties": false,
+        "description": "名称一经分配便绑定原模型；历史名称继续可调用。",
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "backend_id": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "model_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "backend_id",
+          "model_id",
+          "is_primary"
+        ],
+        "type": "object"
+      },
+      "ScheduleInput": {
+        "additionalProperties": false,
+        "description": "页面可编辑配置；不接收客户端提供的配置版本或时区。",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "random_minutes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "time": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "time",
+          "random_minutes"
+        ],
+        "type": "object"
+      },
+      "SecretRef": {
+        "additionalProperties": false,
+        "description": "引用服务器环境变量或宿主凭证库；不接收客户端文件路径。",
+        "properties": {
+          "secret_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret_ref"
+        ],
+        "type": "object"
+      },
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServiceCredentials": {
+        "additionalProperties": false,
+        "description": "API 密钥和请求头凭证只通过引用进入声明配置。",
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SecretRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/SecretRef"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ServiceSpec": {
+        "additionalProperties": false,
+        "description": "可单独提交的服务声明；版本变化不能被旧客户端静默忽略。",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/$defs/ServiceConfig"
+          },
+          "credentials": {
+            "$ref": "#/$defs/ServiceCredentials",
+            "default": {}
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_config_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/ServicePolicy",
+            "default": {
+              "candidate_models": [],
+              "comparison_scope": null,
+              "context_limit": null,
+              "cost_tier": "unknown",
+              "daily_token_budget": 0,
+              "default_output_tokens": 8192,
+              "image_tokens": 8192,
+              "input_limit": null,
+              "input_margin_percent": 5,
+              "input_margin_tokens": 1024,
+              "model_priority": {},
+              "priority": 100,
+              "provider_input_reserve": 1024,
+              "provider_output_reserve": null,
+              "qps": 0
+            }
+          }
+        },
+        "required": [
+          "api_version",
+          "kind",
+          "id",
+          "name",
+          "plugin_id",
+          "plugin_config_version",
+          "enabled",
+          "config"
+        ],
+        "type": "object"
+      },
+      "TargetSettings": {
+        "additionalProperties": false,
+        "description": "后端或账号的容量与新组分配权重；账号键使用 backend/account。",
+        "properties": {
+          "capacity": {
+            "default": 4,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "weight": {
+            "default": 1,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "计划请求必须声明读取过的版本，防止客户端静默覆盖并发更新。",
+    "properties": {
+      "change": {
+        "$ref": "#/$defs/ConfigChange"
+      },
+      "expected_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "expected_revision",
+      "change"
+    ],
+    "title": "PlanInput",
+    "type": "object"
+  },
+  "preset": {
+    "$defs": {
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "可导入的公开配置默认值；凭证不允许出现在预设中。",
+    "properties": {
+      "api_version": {
+        "type": "string"
+      },
+      "config": {
+        "$ref": "#/$defs/ServiceConfig"
+      },
+      "docs": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "plugin_config_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "plugin_id": {
+        "type": "string"
+      },
+      "policy": {
+        "$ref": "#/$defs/ServicePolicy",
+        "default": {
+          "candidate_models": [],
+          "comparison_scope": null,
+          "context_limit": null,
+          "cost_tier": "unknown",
+          "daily_token_budget": 0,
+          "default_output_tokens": 8192,
+          "image_tokens": 8192,
+          "input_limit": null,
+          "input_margin_percent": 5,
+          "input_margin_tokens": 1024,
+          "model_priority": {},
+          "priority": 100,
+          "provider_input_reserve": 1024,
+          "provider_output_reserve": null,
+          "qps": 0
+        }
+      }
+    },
+    "required": [
+      "api_version",
+      "id",
+      "name",
+      "plugin_id",
+      "plugin_config_version",
+      "config",
+      "docs"
+    ],
+    "title": "ProviderPreset",
+    "type": "object"
+  },
+  "preset_import": {
+    "$defs": {
+      "ProviderPreset": {
+        "additionalProperties": false,
+        "description": "可导入的公开配置默认值；凭证不允许出现在预设中。",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/$defs/ServiceConfig"
+          },
+          "docs": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_config_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/ServicePolicy",
+            "default": {
+              "candidate_models": [],
+              "comparison_scope": null,
+              "context_limit": null,
+              "cost_tier": "unknown",
+              "daily_token_budget": 0,
+              "default_output_tokens": 8192,
+              "image_tokens": 8192,
+              "input_limit": null,
+              "input_margin_percent": 5,
+              "input_margin_tokens": 1024,
+              "model_priority": {},
+              "priority": 100,
+              "provider_input_reserve": 1024,
+              "provider_output_reserve": null,
+              "qps": 0
+            }
+          }
+        },
+        "required": [
+          "api_version",
+          "id",
+          "name",
+          "plugin_id",
+          "plugin_config_version",
+          "config",
+          "docs"
+        ],
+        "type": "object"
+      },
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "presets": {
+        "items": {
+          "$ref": "#/$defs/ProviderPreset"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "presets"
+    ],
+    "title": "PresetInput",
+    "type": "object"
+  },
+  "rollback": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "expected_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "target_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "expected_revision",
+      "target_revision"
+    ],
+    "title": "RollbackInput",
+    "type": "object"
+  },
+  "secret": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "value"
+    ],
+    "title": "SecretInput",
+    "type": "object"
+  },
+  "service": {
+    "$defs": {
+      "SecretRef": {
+        "additionalProperties": false,
+        "description": "引用服务器环境变量或宿主凭证库；不接收客户端文件路径。",
+        "properties": {
+          "secret_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret_ref"
+        ],
+        "type": "object"
+      },
+      "ServiceConfig": {
+        "additionalProperties": false,
+        "description": "连接与协议设置；厂商 options 使用插件导出的 schema 校验。",
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "capabilities": {
+            "default": {}
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "options": {
+            "default": {}
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ServiceCredentials": {
+        "additionalProperties": false,
+        "description": "API 密钥和请求头凭证只通过引用进入声明配置。",
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SecretRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/SecretRef"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "ServicePolicy": {
+        "additionalProperties": false,
+        "description": "宿主拥有调度策略，插件不能扩展费用许可。",
+        "properties": {
+          "candidate_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comparison_scope": {
+            "default": null,
+            "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost_tier": {
+            "default": "unknown",
+            "type": "string"
+          },
+          "daily_token_budget": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default_output_tokens": {
+            "default": 8192,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "image_tokens": {
+            "default": 8192,
+            "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_limit": {
+            "default": null,
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "input_margin_percent": {
+            "default": 5,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_margin_tokens": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model_priority": {
+            "additionalProperties": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "priority": {
+            "default": 100,
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_input_reserve": {
+            "default": 1024,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_output_reserve": {
+            "default": null,
+            "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "qps": {
+            "default": 0,
+            "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "可单独提交的服务声明；版本变化不能被旧客户端静默忽略。",
+    "properties": {
+      "api_version": {
+        "type": "string"
+      },
+      "config": {
+        "$ref": "#/$defs/ServiceConfig"
+      },
+      "credentials": {
+        "$ref": "#/$defs/ServiceCredentials",
+        "default": {}
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "id": {
+        "type": "string"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "plugin_config_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "plugin_id": {
+        "type": "string"
+      },
+      "policy": {
+        "$ref": "#/$defs/ServicePolicy",
+        "default": {
+          "candidate_models": [],
+          "comparison_scope": null,
+          "context_limit": null,
+          "cost_tier": "unknown",
+          "daily_token_budget": 0,
+          "default_output_tokens": 8192,
+          "image_tokens": 8192,
+          "input_limit": null,
+          "input_margin_percent": 5,
+          "input_margin_tokens": 1024,
+          "model_priority": {},
+          "priority": 100,
+          "provider_input_reserve": 1024,
+          "provider_output_reserve": null,
+          "qps": 0
+        }
+      }
+    },
+    "required": [
+      "api_version",
+      "kind",
+      "id",
+      "name",
+      "plugin_id",
+      "plugin_config_version",
+      "enabled",
+      "config"
+    ],
+    "title": "ServiceSpec",
+    "type": "object"
+  }
+}

@@ -1,0 +1,42 @@
+fakemodelproxy — Windows x64 便携版（版本见 build-info.txt）
+
+使用方法
+1. 把 ZIP 完整解压到可写目录。
+2. 双击 start.cmd，保留控制台窗口。
+3. 浏览器打开 http://127.0.0.1:8317/，添加后端及账号。
+4. 在调用客户端中填写 OpenAI 兼容 Base URL：
+   http://127.0.0.1:8317/v1
+   模型名称以管理界面或 /v1/models 返回的列表为准。
+5. 在控制台按 Ctrl+C 停止服务。
+
+系统要求
+- Windows 10/11 x64；无需安装 Rust、Go 或 Node.js。
+- 可执行文件采用静态 C 运行库；管理页面已嵌入程序。
+- 后端请求需要网络连接及对应的账号或 API Key。
+
+数据与升级
+- start.cmd 将数据固定保存到同目录的 data 文件夹。
+- 数据库为 data\fakemodelproxy.db，请求记录为 data\requests.jsonl。
+- 首次运行自动创建数据目录；本压缩包没有预置账号和数据库。
+- 备份时先停止程序，再备份整个 data 文件夹。
+- 升级时先停止程序，再替换 exe 和启动脚本，保留 data 文件夹。
+- 直接运行 exe 时，数据默认保存到当前工作目录的 .fakemodelproxy。
+
+可选环境变量
+- FMP_LISTEN：监听地址，默认 127.0.0.1:8317。
+- FMP_API_KEY：调用密钥，本地默认不校验。
+- FMP_ADMIN_KEY：管理密钥，默认复用调用密钥。
+- FMP_LOG：日志级别，默认 info。
+- FMP_MAX_REQUEST_BODY_MB：请求体上限，默认 64 MiB。
+- FMP_RECORD_CAPACITY：保留的请求记录数量。
+  start.cmd 固定使用包内 data 目录；自定义 FMP_DATA_DIR 时直接运行 exe。
+
+常见问题
+- 端口被占用：关闭另一个实例，或设置 FMP_LISTEN 后重新启动。
+- 程序启动报错：start.cmd 会保留错误信息，便于查看。
+- 客户端强制要求 API Key：默认本地模式可填任意非空值；
+  若设置了 FMP_API_KEY，填写对应密钥。
+
+验证范围
+本包在 macOS 上交叉编译为 Windows x64，已检查可执行文件格式、
+导入的系统 DLL 与 ZIP 完整性；尚未在真实 Windows 上运行验证。

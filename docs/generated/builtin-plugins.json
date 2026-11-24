@@ -1,0 +1,2990 @@
+{
+  "plugins": [
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/autoglm/cancel",
+          "id": "login",
+          "interaction": "open_url",
+          "poll_path": "/api/oauth/autoglm/poll",
+          "start_path": "/api/oauth/autoglm/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {
+          "CheckinProtocol": {
+            "description": "国内 2.5.3 使用 card；未确认的国际版本保留 task，显式选项支持受控迁移。",
+            "enum": [
+              "card",
+              "task"
+            ],
+            "type": "string"
+          },
+          "Region": {
+            "description": "国内与国际账号必须向各自账号域发送令牌。",
+            "enum": [
+              "cn",
+              "global"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "配置覆盖保留接口升级及本地假上游验证能力。",
+            "properties": {
+              "account_base": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "checkin_protocol": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CheckinProtocol"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "client_version": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "platform": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Region"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "AutoGLM",
+      "docs": "docs/providers/autoglm.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "autoglm",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "ali_captcha_verify_param": {
+                "type": "string"
+              },
+              "device_id": {
+                "type": "string"
+              },
+              "provider": {
+                "enum": [
+                  "zai",
+                  "google"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": "open_url",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/minimax_code/cancel",
+          "id": "login",
+          "interaction": "device_code",
+          "poll_path": "/api/oauth/minimax_code/poll",
+          "start_path": "/api/oauth/minimax_code/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "服务区域独立于 API key 或客户端安装。",
+            "properties": {
+              "region": {
+                "default": "",
+                "type": "string"
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "MiniMax Code",
+      "docs": "docs/providers/minimax-code.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "minimax_code",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "device_code",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [],
+      "config_schema": {
+        "$defs": {
+          "WireProfile": {
+            "description": "原生与兼容协议分别选择字段，不按模型名称猜测。",
+            "enum": [
+              "compatible",
+              "openai"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "后端选项。来自配置的 options JSON，缺省时使用默认值。",
+            "properties": {
+              "chat_path": {
+                "default": null,
+                "description": "对话路径，默认 `chat/completions`。",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "headers": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "description": "额外请求头。会覆盖同名默认头。",
+                "type": "object"
+              },
+              "models_path": {
+                "default": null,
+                "description": "模型列表路径，默认 `models`。",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              },
+              "wire_profile": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WireProfile"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "原生 OpenAI 保留 developer 并使用 max_completion_tokens，兼容模式沿用旧字段。"
+              }
+            },
+            "title": "BackendOptions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "ModelScope 魔搭",
+      "docs": "docs/providers/modelscope.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": false,
+        "inference": true,
+        "quota": true
+      },
+      "id": "modelscope",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "gateway",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/monkeycode/cancel",
+          "id": "login",
+          "interaction": "local_browser",
+          "poll_path": "/api/oauth/monkeycode/poll",
+          "start_path": "/api/oauth/monkeycode/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "未提供网页登录态时可显式配置单一上游协议。",
+            "properties": {
+              "interface_type": {
+                "default": "",
+                "type": "string"
+              },
+              "region": {
+                "default": "",
+                "type": "string"
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "MonkeyCode",
+      "docs": "docs/providers/monkeycode.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": false,
+        "inference": true,
+        "quota": true
+      },
+      "id": "monkeycode",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "local_browser",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [],
+      "config_schema": {
+        "$defs": {
+          "WireProfile": {
+            "description": "原生与兼容协议分别选择字段，不按模型名称猜测。",
+            "enum": [
+              "compatible",
+              "openai"
+            ],
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "后端选项。来自配置的 options JSON，缺省时使用默认值。",
+            "properties": {
+              "chat_path": {
+                "default": null,
+                "description": "对话路径，默认 `chat/completions`。",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "headers": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "description": "额外请求头。会覆盖同名默认头。",
+                "type": "object"
+              },
+              "models_path": {
+                "default": null,
+                "description": "模型列表路径，默认 `models`。",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              },
+              "wire_profile": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WireProfile"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "原生 OpenAI 保留 developer 并使用 max_completion_tokens，兼容模式沿用旧字段。"
+              }
+            },
+            "title": "BackendOptions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "OpenAI 兼容",
+      "docs": "docs/providers/openai-compat.md",
+      "features": {
+        "accounts": false,
+        "catalog": true,
+        "checkin": false,
+        "credential_refresh": false,
+        "inference": true,
+        "quota": false
+      },
+      "id": "openai_compat",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "gateway",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/qoder/cancel",
+          "id": "login",
+          "interaction": "open_url",
+          "poll_path": "/api/oauth/qoder/poll",
+          "start_path": "/api/oauth/qoder/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {
+          "QoderRegion": {
+            "description": "Qoder 区域端点。",
+            "oneOf": [
+              {
+                "const": "global",
+                "description": "国际站。",
+                "type": "string"
+              },
+              {
+                "const": "cn",
+                "description": "国内站。",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "Qoder 专属选项只公开服务区域，账号私有端点留在凭证域。",
+            "properties": {
+              "region": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/QoderRegion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "Qoder",
+      "docs": "docs/providers/qoder.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "qoder",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "open_url",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/raccoon/cancel",
+          "id": "login",
+          "interaction": "open_url",
+          "poll_path": "/api/oauth/raccoon/poll",
+          "start_path": "/api/oauth/raccoon/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "无专属配置的插件拒绝未知 options 字段。",
+            "properties": {
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "EmptyOptions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "小浣熊",
+      "docs": "docs/providers/raccoon.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "raccoon",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "open_url",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/trae_personal/cancel",
+          "id": "login",
+          "interaction": "open_url",
+          "poll_path": "/api/oauth/trae_personal/poll",
+          "start_path": "/api/oauth/trae_personal/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {
+          "ClientDevice": {
+            "additionalProperties": false,
+            "description": "一份服务对应一台客户端；同服务账号共享物理设备，凭证和每日记录仍按账号隔离。",
+            "properties": {
+              "app_type": {
+                "default": "stable",
+                "description": "官方授权渠道；设备配置不改变个人 CN 授权域。",
+                "pattern": "^(stable|insider)$",
+                "type": "string"
+              },
+              "app_version": {
+                "description": "官方 product.appVersion；不是 VS Code 版本或 FMP 版本。",
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              "device_brand": {
+                "description": "官方 commonParams.device_model，例如 Mac 的硬件型号。",
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "device_id": {
+                "description": "官方客户端注册完成后的 device ID，不是 machine ID 或本地备用 ID。",
+                "maxLength": 20,
+                "minLength": 1,
+                "pattern": "^[1-9][0-9]{0,19}$",
+                "type": "string"
+              },
+              "device_type": {
+                "description": "官方 commonParams.os_name。",
+                "pattern": "^(mac|windows|linux)$",
+                "type": "string"
+              },
+              "ide_version": {
+                "default": "",
+                "description": "官方 extension API 的 version（product.version），与 GUI appVersion 分开。",
+                "maxLength": 64,
+                "type": "string"
+              },
+              "machine_id": {
+                "default": "",
+                "description": "官方授权使用的 telemetry.machineId；缺省仅使用 FMP 服务的稳定机器标识。",
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]*$",
+                "type": "string"
+              },
+              "os_version": {
+                "description": "官方 commonParams.os_version，按客户端原字符串发送。",
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "plugin_version": {
+                "default": "local",
+                "description": "官方 product.tronBuildVersion，缺省沿用官方的 local 回退值。",
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_brand",
+              "device_type",
+              "os_version",
+              "app_version"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "运行时选项和插件 schema 共用类型，保留旧 CN 区域配置。",
+            "properties": {
+              "client_device": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ClientDevice"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "官方设备信息显式进入服务配置；后端不读取客户端文件或自动注册新设备。"
+              },
+              "region": {
+                "default": "",
+                "pattern": "^(|cn)$",
+                "type": "string"
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "TRAE 个人版",
+      "docs": "docs/providers/trae.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "trae_personal",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "open_url",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "config_helpers": [
+          {
+            "capture_path": "/api/plugins/trae_personal/device/capture",
+            "fields": [
+              {
+                "key": "device_id",
+                "title": "注册设备 ID"
+              },
+              {
+                "key": "device_brand",
+                "title": "设备型号"
+              },
+              {
+                "key": "device_type",
+                "title": "系统类型"
+              },
+              {
+                "key": "os_version",
+                "title": "OS 版本"
+              },
+              {
+                "key": "app_version",
+                "title": "应用版本"
+              },
+              {
+                "key": "ide_version",
+                "title": "IDE 内核版本"
+              },
+              {
+                "key": "plugin_version",
+                "title": "构建版本"
+              }
+            ],
+            "id": "client_device",
+            "instructions": "自动获取读取 FMP 所在机器、当前运行用户的 TRAE CN 客户端。其他机器下载脚本，运行 python3 collect-trae-device.py --output trae-device.json（Windows 可用 py -3），再导入 JSON。需先启动官方客户端完成设备注册。只导出设备和版本元数据，不导出登录凭证，不联网。",
+            "option": "client_device",
+            "report_schema": {
+              "$defs": {
+                "Candidate": {
+                  "additionalProperties": false,
+                  "description": "一个候选只包含同一客户端的设备上下文，标签不参与配置。",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/ClientDevice"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                "ClientDevice": {
+                  "additionalProperties": false,
+                  "description": "一份服务对应一台客户端；同服务账号共享物理设备，凭证和每日记录仍按账号隔离。",
+                  "properties": {
+                    "app_type": {
+                      "default": "stable",
+                      "description": "官方授权渠道；设备配置不改变个人 CN 授权域。",
+                      "pattern": "^(stable|insider)$",
+                      "type": "string"
+                    },
+                    "app_version": {
+                      "description": "官方 product.appVersion；不是 VS Code 版本或 FMP 版本。",
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "device_brand": {
+                      "description": "官方 commonParams.device_model，例如 Mac 的硬件型号。",
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "device_id": {
+                      "description": "官方客户端注册完成后的 device ID，不是 machine ID 或本地备用 ID。",
+                      "maxLength": 20,
+                      "minLength": 1,
+                      "pattern": "^[1-9][0-9]{0,19}$",
+                      "type": "string"
+                    },
+                    "device_type": {
+                      "description": "官方 commonParams.os_name。",
+                      "pattern": "^(mac|windows|linux)$",
+                      "type": "string"
+                    },
+                    "ide_version": {
+                      "default": "",
+                      "description": "官方 extension API 的 version（product.version），与 GUI appVersion 分开。",
+                      "maxLength": 64,
+                      "type": "string"
+                    },
+                    "machine_id": {
+                      "default": "",
+                      "description": "官方授权使用的 telemetry.machineId；缺省仅使用 FMP 服务的稳定机器标识。",
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]*$",
+                      "type": "string"
+                    },
+                    "os_version": {
+                      "description": "官方 commonParams.os_version，按客户端原字符串发送。",
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "plugin_version": {
+                      "default": "local",
+                      "description": "官方 product.tronBuildVersion，缺省沿用官方的 local 回退值。",
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "device_id",
+                    "device_brand",
+                    "device_type",
+                    "os_version",
+                    "app_version"
+                  ],
+                  "type": "object"
+                }
+              },
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "description": "下载脚本、采集按钮与手动导入共享的可移植报告。",
+              "properties": {
+                "api_version": {
+                  "type": "string"
+                },
+                "candidates": {
+                  "items": {
+                    "$ref": "#/$defs/Candidate"
+                  },
+                  "type": "array"
+                },
+                "plugin_id": {
+                  "type": "string"
+                },
+                "warnings": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "api_version",
+                "plugin_id",
+                "candidates"
+              ],
+              "title": "Report",
+              "type": "object"
+            },
+            "script_filename": "collect-trae-device.py",
+            "script_path": "/api/plugins/trae_personal/device/collect.py",
+            "title": "官方客户端设备信息",
+            "validate_path": "/api/plugins/trae_personal/device/validate",
+            "value_schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "description": "一份服务对应一台客户端；同服务账号共享物理设备，凭证和每日记录仍按账号隔离。",
+              "properties": {
+                "app_type": {
+                  "default": "stable",
+                  "description": "官方授权渠道；设备配置不改变个人 CN 授权域。",
+                  "pattern": "^(stable|insider)$",
+                  "type": "string"
+                },
+                "app_version": {
+                  "description": "官方 product.appVersion；不是 VS Code 版本或 FMP 版本。",
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "device_brand": {
+                  "description": "官方 commonParams.device_model，例如 Mac 的硬件型号。",
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "device_id": {
+                  "description": "官方客户端注册完成后的 device ID，不是 machine ID 或本地备用 ID。",
+                  "maxLength": 20,
+                  "minLength": 1,
+                  "pattern": "^[1-9][0-9]{0,19}$",
+                  "type": "string"
+                },
+                "device_type": {
+                  "description": "官方 commonParams.os_name。",
+                  "pattern": "^(mac|windows|linux)$",
+                  "type": "string"
+                },
+                "ide_version": {
+                  "default": "",
+                  "description": "官方 extension API 的 version（product.version），与 GUI appVersion 分开。",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "machine_id": {
+                  "default": "",
+                  "description": "官方授权使用的 telemetry.machineId；缺省仅使用 FMP 服务的稳定机器标识。",
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9_-]*$",
+                  "type": "string"
+                },
+                "os_version": {
+                  "description": "官方 commonParams.os_version，按客户端原字符串发送。",
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "plugin_version": {
+                  "default": "local",
+                  "description": "官方 product.tronBuildVersion，缺省沿用官方的 local 回退值。",
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "device_id",
+                "device_brand",
+                "device_type",
+                "os_version",
+                "app_version"
+              ],
+              "title": "ClientDevice",
+              "type": "object"
+            }
+          }
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    },
+    {
+      "auth_flows": [
+        {
+          "cancel_path": "/api/oauth/workbuddy/cancel",
+          "id": "login",
+          "interaction": "open_url",
+          "poll_path": "/api/oauth/workbuddy/poll",
+          "start_path": "/api/oauth/workbuddy/start",
+          "title": "登录授权"
+        }
+      ],
+      "config_schema": {
+        "$defs": {},
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "format": "uri",
+            "title": "服务地址",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": false,
+            "properties": {
+              "context_window": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "images": {
+                "type": "boolean"
+              },
+              "parallel_tools": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "候选模型",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "options": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "后端选项 JSON。",
+            "properties": {
+              "cli_version": {
+                "default": "",
+                "type": "string"
+              },
+              "client_version": {
+                "default": "",
+                "type": "string"
+              },
+              "deployment_type": {
+                "default": "",
+                "type": "string"
+              },
+              "login_platform": {
+                "default": "",
+                "type": "string"
+              },
+              "private_data": {
+                "default": null,
+                "description": "true 表示不允许模型优化使用请求数据，缺省采用此值。",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "region": {
+                "default": "",
+                "type": "string"
+              },
+              "routing": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "后端 options.routing 可覆盖的准入预算，图片按张数预留容量。",
+                "properties": {
+                  "candidate_models": {
+                    "default": [],
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "comparison_scope": {
+                    "default": null,
+                    "description": "用户显式确认的同一计费基准；不同额度单位仍保持独立。",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "context_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "default_output_tokens": {
+                    "default": 8192,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image_tokens": {
+                    "default": 8192,
+                    "description": "每张图片的容量估算；null 可显式禁止图片参与 Auto。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_limit": {
+                    "default": null,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "input_margin_percent": {
+                    "default": 5,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "input_margin_tokens": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "model_priority": {
+                    "additionalProperties": {
+                      "format": "uint8",
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "default": {},
+                    "type": "object"
+                  },
+                  "provider_input_reserve": {
+                    "default": 1024,
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "provider_output_reserve": {
+                    "default": null,
+                    "description": "不执行 max_tokens 的上游，由部署显式确认的最坏输出预留。",
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "qps": {
+                    "default": 0,
+                    "description": "整个服务每个滚动一秒窗口的生成提交上限，0 表示不限。",
+                    "format": "uint32",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "title": "RouteSettings",
+                "type": "object"
+              }
+            },
+            "title": "BackendOptions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "config_schema_version": 1,
+      "contract_version": 1,
+      "display_name": "WorkBuddy",
+      "docs": "docs/providers/workbuddy.md",
+      "features": {
+        "accounts": true,
+        "catalog": true,
+        "checkin": true,
+        "credential_refresh": true,
+        "inference": true,
+        "quota": true
+      },
+      "id": "workbuddy",
+      "operations": [
+        {
+          "effect": "read_remote",
+          "id": "models.sync",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "同步模型"
+        },
+        {
+          "effect": "read_remote",
+          "id": "quota.refresh",
+          "idempotency": "repeatable",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "更新额度"
+        },
+        {
+          "effect": "write_remote",
+          "id": "credential.refresh",
+          "idempotency": "fenced",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "刷新凭证"
+        },
+        {
+          "effect": "write_remote",
+          "id": "checkin",
+          "idempotency": "period",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "interaction": null,
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "领取每日奖励"
+        },
+        {
+          "effect": "write_remote",
+          "id": "auth.start",
+          "idempotency": "session",
+          "input_schema": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "interaction": "open_url",
+          "output_schema": {
+            "type": "object"
+          },
+          "title": "登录授权"
+        }
+      ],
+      "ui": {
+        "advanced": [
+          "options"
+        ],
+        "field_order": [
+          "base_url",
+          "models",
+          "options"
+        ],
+        "secret_fields": [
+          "credentials",
+          "options.headers"
+        ]
+      },
+      "ui_group": "reverse",
+      "version": "0.1.0"
+    }
+  ]
+}
