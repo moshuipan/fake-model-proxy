@@ -1,0 +1,32 @@
+name: 缺陷报告
+description: 报告可以复现的功能问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "请使用合成数据，并清除账号凭证、设备标识、私人路径和请求正文。安全问题请参考 SECURITY.md。"
+  - type: input
+    id: version
+    attributes:
+      label: 版本与平台
+      description: FMP 版本或提交、操作系统、Rust 版本
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 提供最小配置、协议与调用步骤
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 脱敏证据
+      description: 错误码、日志摘要或本地假上游复现

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 AutoGLM · fakemodelproxy</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, sans-serif; color: #172033; background: #f5f7fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    main { width: min(100%, 440px); background: white; border: 1px solid #e3e8ef; border-radius: 20px; padding: 32px; box-shadow: 0 12px 40px #13213a09; }
+    .brand { color: #637087; font-size: 12px; letter-spacing: .06em; margin: 0 0 24px; }
+    h1 { margin: 0 0 10px; font-size: 26px; letter-spacing: -.02em; }
+    p { line-height: 1.65; }
+    .intro { color: #637087; font-size: 14px; margin: 0 0 26px; }
+    label { display: block; font-size: 14px; margin: 18px 0 8px; }
+    input { width: 100%; min-width: 0; height: 46px; border: 1px solid #d8dfe9; border-radius: 9px; padding: 0 12px; font: inherit; outline: none; }
+    input:focus { border-color: #4263eb; box-shadow: 0 0 0 3px #4263eb12; }
+    button { font: inherit; cursor: pointer; border: 1px solid #d8dfe9; border-radius: 9px; padding: 12px 15px; background: white; white-space: nowrap; }
+    button:disabled, input:disabled { cursor: default; opacity: .5; }
+    .row { display: flex; gap: 10px; }
+    .primary { display: block; width: 100%; margin-top: 22px; color: white; background: #4263eb; border-color: #4263eb; }
+    .secondary { display: block; width: 100%; margin-top: 10px; color: #637087; border: 0; }
+    #status { padding: 12px 14px; margin: 20px 0 0; background: #f5f7fa; border-radius: 9px; font-size: 13px; overflow-wrap: anywhere; }
+    #status[data-tone="error"] { background: #fff1f0; color: #b42318; }
+    #status[data-tone="success"] { background: #edf9f2; color: #157347; }
+    iframe { width: 100%; height: 220px; border: 0; margin-top: 14px; }
+    .footnote { font-size: 12px; color: #8490a3; margin: 24px 0 0; }
+    #back { display: block; text-align: center; margin-top: 20px; color: #4263eb; text-decoration: none; }
+    [hidden] { display: none !important; }
+    @media (max-width: 480px) { body { padding: 16px; } main { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">FAKEMODELPROXY</p>
+    <h1>登录 AutoGLM</h1>
+    <p class="intro">使用国内 AutoGLM 账号。登录成功后，账号会自动保存到代理。</p>
+    <form id="login-form">
+      <label for="phone">手机号</label>
+      <input id="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="请输入 11 位手机号" required>
+      <label for="code">短信验证码</label>
+      <div class="row">
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="请输入验证码" disabled required>
+        <button id="send" type="button" disabled>发送验证码</button>
+      </div>
+      <iframe id="captcha-frame" title="AutoGLM 官方安全验证" hidden></iframe>
+      <button id="submit" class="primary" type="submit" disabled>登录并保存账号</button>
+      <button id="cancel" class="secondary" type="button">取消登录</button>
+    </form>
+    <p id="status" role="status" aria-live="polite">正在加载登录配置…</p>
+    <button id="retry" class="secondary" type="button" hidden>重新加载</button>
+    <a id="back" href="/" hidden>返回控制台</a>
+    <p class="footnote">此页面由代理提供，使用 AutoGLM 官方短信登录接口。凭证保存在代理，页面有效期为 10 分钟。</p>
+  </main>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const sessionId = location.pathname.split('/').filter(Boolean).pop();
+    let active = true;
+    let busy = false;
+    let verifying = false;
+    let config = null;
+    let sentPhone = '';
+    let retryAt = 0;
+    let pollTimer = null;
+    let countdownTimer = null;
+    let captchaTimer = null;
+    let captchaSent = false;
+
+    /** 所有登录操作使用同源随机会话，不读取或发送控制台管理密钥。 */
+    async function request(action, body = {}) {
+      const response = await fetch(`/auth/autoglm/${encodeURIComponent(sessionId)}/${action}`, {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30000),
+      });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value.error?.message || '登录请求失败，请重试');
+      return value;
+    }
+    /** 状态文字使用 textContent，不能把上游消息解释为 HTML。 */
+    function status(message, tone = '') {
+      $('status').textContent = message;
+      $('status').dataset.tone = tone;
+    }
+    /** 手机号变化或发码未成功时，验证码不能提交到账号交换接口。 */
+    function updateControls() {
+      const phone = $('phone').value.trim();
+      const valid = /^1\d{10}$/.test(phone);
+      const sent = sentPhone === phone && !!sentPhone;
+      const wait = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+      $('phone').disabled = !active || busy || verifying;
+      $('code').disabled = !active || busy || verifying || !sent;
+      $('send').disabled = !active || busy || verifying || !valid || !config || wait > 0;
+      $('send').textContent = wait > 0 ? `${wait} 秒后重发` : sentPhone ? '重新发送' : '发送验证码';
+      $('submit').disabled = !active || busy || verifying || !sent || !/^\d{4,8}$/.test($('code').value.trim());
+      $('submit').textContent = busy && !verifying ? '正在处理…' : '登录并保存账号';
+    }
+    /** 清理当前安全验证页面和计时器，忽略其迟到的回执。 */
+    function clearCaptcha() {
+      clearTimeout(captchaTimer);
+      verifying = false;
+      captchaSent = false;
+      $('captcha-frame').hidden = true;
+      $('captcha-frame').src = 'about:blank';
+    }
+    /** 保存或取消后结束页面请求，控制台可读取相同终态。 */
+    function finish(message, tone) {
+      active = false;
+      busy = false;
+      clearTimeout(pollTimer);
+      clearTimeout(countdownTimer);
+      clearCaptcha();
+      $('login-form').hidden = true;
+      $('retry').hidden = true;
+      $('back').hidden = false;
+      status(message, tone);
+    }
+    /** 服务端确认发码成功后才解锁对应手机号，倒计时不触发额外请求。 */
+    function markSent(phone, result) {
+      sentPhone = phone;
+      retryAt = Date.now() + (result.retry_after || 60) * 1000;
+      $('code').value = '';
+      busy = false;
+      verifying = false;
+      status('验证码已发送，请填写收到的短信验证码。', 'success');
+      updateControls();
+      countdown();
+      $('code').focus();
+    }
+    /** 重发按钮每秒更新，后台暂停后按真实时间计算剩余秒数。 */
+    function countdown() {
+      clearTimeout(countdownTimer);
+      if (!active) return;
+      updateControls();
+      if (Date.now() < retryAt) countdownTimer = setTimeout(countdown, 1000);
+    }
+    /** 每次发码重新读取官方验证要求，设备身份仍由当前服务端会话保持。 */
+    async function sendCode() {
+      if ($('send').disabled) return;
+      const phone = $('phone').value.trim();
+      busy = true;
+      sentPhone = '';
+      clearCaptcha();
+      updateControls();
+      status('正在准备短信验证…');
+      try {
+        const prepared = await request('captcha-config');
+        if (!active) return;
+        config = prepared.config;
+        if (config.enabled === false) {
+          const result = await request('send-code', { phone });
+          if (active) markSent(phone, result);
+        } else {
+          verifying = true;
+          const url = new URL('/assets/autoglm-captcha.html', location.origin);
+          url.search = new URLSearchParams({
+            action: 'send-code', region: config.region, prefix: config.prefix, scene_id: config.scene_id,
+          });
+          $('captcha-frame').hidden = false;
+          $('captcha-frame').src = url.href;
+          status('请完成下方官方安全验证，验证通过后发送短信。');
+          captchaTimer = setTimeout(() => {
+            if (!active || !verifying) return;
+            clearCaptcha();
+            updateControls();
+            status('安全验证已超时，请重新发送。', 'error');
+          }, 120000);
+        }
+      } catch (error) {
+        if (active) status(error.message, 'error');
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    }
+    /** 只接收当前同源 iframe 回执，以官方发码结果决定 SDK 的业务成功状态。 */
+    async function receiveCaptcha(event) {
+      const frame = $('captcha-frame');
+      if (!active || frame.hidden || event.origin !== location.origin || event.source !== frame.contentWindow) return;
+      const data = event.data;
+      if (data?.type === 'fmp-captcha-done' && captchaSent) {
+        clearCaptcha();
+        updateControls();
+        return;
+      }
+      if (data?.type === 'fmp-captcha-error') {
+        clearCaptcha();
+        updateControls();
+        status(data.message || '安全验证加载失败，请重新发送。', 'error');
+        return;
+      }
+      if (data?.type !== 'fmp-captcha-proof' || !verifying || busy) return;
+      busy = true;
+      updateControls();
+      try {
+        if (typeof data.proof !== 'string' || !data.proof.trim()) throw new Error('安全验证回执无效');
+        const phone = $('phone').value.trim();
+        const result = await request('send-code', { phone, ali_captcha_verify_param: data.proof });
+        if (!active || frame.hidden) return;
+        captchaSent = true;
+        frame.contentWindow.postMessage({ type: 'fmp-captcha-result', id: data.id, accepted: true }, location.origin);
+        markSent(phone, result);
+        clearTimeout(captchaTimer);
+      } catch (error) {
+        if (active && !frame.hidden) {
+          frame.contentWindow.postMessage({ type: 'fmp-captcha-result', id: data.id, accepted: false, message: error.message }, location.origin);
+          status(error.message, 'error');
+        }
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    }
+    /** 提交验证码后自动保存账号，失败时保留输入便于修正。 */
+    async function submitLogin(event) {
+      event.preventDefault();
+      if ($('submit').disabled) return;
+      busy = true;
+      updateControls();
+      status('正在登录并保存账号…');
+      try {
+        const result = await request('login', { phone: $('phone').value.trim(), code: $('code').value.trim() });
+        if (active) finish(`账号 ${result.name} 已保存，可返回控制台使用。`, 'success');
+      } catch (error) {
+        if (active) status(error.message, 'error');
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    }
+    /** 独立页面也检测控制台取消和服务变更，网络失败不会伪装成成功。 */
+    async function pollStatus() {
+      if (!active) return;
+      try {
+        const result = await request('status');
+        if (!active) return;
+        if (result.status === 'done') {
+          finish(`账号 ${result.name} 已保存，可返回控制台使用。`, 'success');
+          return;
+        }
+      } catch (error) {
+        if (!active) return;
+        if (/已取消|已超时|不存在|已删除|停用|配置已变更/.test(error.message)) {
+          finish(error.message, 'error');
+          return;
+        }
+        status(error.message, 'error');
+      }
+      if (active) pollTimer = setTimeout(pollStatus, 2000);
+    }
+    /** 首次只检查状态和公开配置，不自动发送短信或读取浏览器存储。 */
+    async function initialize() {
+      clearTimeout(pollTimer);
+      $('retry').hidden = true;
+      busy = true;
+      updateControls();
+      await pollStatus();
+      if (!active) return;
+      try {
+        const result = await request('captcha-config');
+        if (!active) return;
+        config = result.config;
+        status('填写手机号后，点击发送验证码。');
+      } catch (error) {
+        if (active) {
+          status(error.message, 'error');
+          $('retry').hidden = false;
+        }
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    }
+    /** 取消传到服务端，进行中的短信或登录响应不能继续保存。 */
+    async function cancelLogin() {
+      if (!active) return;
+      try {
+        const result = await request('cancel');
+        if (active) {
+          if (result.status === 'done') finish(`账号 ${result.name} 已保存，可返回控制台使用。`, 'success');
+          else finish('登录已取消，可返回控制台重新开始。', '');
+        }
+      } catch (error) {
+        if (active) status(error.message, 'error');
+      }
+    }
+    $('phone').addEventListener('input', () => {
+      if ($('phone').value.trim() !== sentPhone) { sentPhone = ''; $('code').value = ''; }
+      updateControls();
+    });
+    $('code').addEventListener('input', updateControls);
+    $('send').addEventListener('click', sendCode);
+    $('login-form').addEventListener('submit', submitLogin);
+    $('cancel').addEventListener('click', cancelLogin);
+    $('retry').addEventListener('click', initialize);
+    window.addEventListener('message', receiveCaptcha);
+    initialize();
+  </script>
+</body>
+</html>

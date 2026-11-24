@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check public source
+        run: python3 -B scripts/check_public_source.py
+      - name: Check Rust format
+        run: cargo fmt --all --check
+      - name: Check Rust lints
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Run Rust tests
+        run: cargo test --locked --all-targets
+      - name: Verify generated contracts
+        run: |
+          cargo run --locked --example export_contracts -- "$RUNNER_TEMP/fmp-contracts"
+          for name in management-schema management-openapi builtin-plugins; do
+            diff -u "docs/generated/$name.json" "$RUNNER_TEMP/fmp-contracts/$name.json"
+          done
+      - name: Check JavaScript
+        run: |
+          node --check web/console.js
+          node --test web/console.test.cjs web/autoglm-login.test.cjs
+      - name: Test Python tools
+        run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
+      - name: Verify dependency notices
+        run: |
+          python3 -B scripts/export_dependency_notices.py --output "$RUNNER_TEMP/fmp-third-party-notices.md"
+          diff -u THIRD_PARTY_NOTICES.md "$RUNNER_TEMP/fmp-third-party-notices.md"
+      - name: Verify Cargo package contents
+        run: |
+          cargo package --locked --list > "$RUNNER_TEMP/fmp-package-files.txt"
+          python3 -B scripts/check_public_source.py --package-list "$RUNNER_TEMP/fmp-package-files.txt"

@@ -1,0 +1,35 @@
+//! __PLUGIN_ID__ 服务插件；当前真实能力为 OpenAI 兼容传输。
+
+use super::{ScopedHostServices, contract::*};
+use crate::{backend::openai_compat::OpenAiCompatBackend, core::AppError, store::BackendRecord};
+use std::sync::Arc;
+
+pub const PLUGIN: PluginDefinition = PluginDefinition {
+    describe,
+    validate_record: validate,
+    build,
+    routes: super::control::no_routes,
+    auth: None,
+    accounts: AccountControl::MANUAL,
+};
+
+/// 描述实际已实现的兼容传输，不声明未实现的授权、额度或任务。
+fn describe() -> PluginDescriptor {
+    PluginDescriptor::new(
+        "__PLUGIN_ID__", "__PLUGIN_ID__", "gateway",
+        config_schema::<crate::backend::openai_compat::BackendOptions>(),
+        Features { inference: true, catalog: true, ..Default::default() },
+    )
+}
+
+/// 校验只构造本地客户端，不请求上游。
+fn validate(record: &BackendRecord) -> Result<(), AppError> {
+    OpenAiCompatBackend::new(record).map(|_| ())
+}
+
+/// 复用经过流式契约验证的传输；新协议在此替换为实际适配器。
+fn build(record: &BackendRecord, host: ScopedHostServices) -> Result<ProviderRuntime, AppError> {
+    Ok(ProviderRuntime::inference(Arc::new(
+        OpenAiCompatBackend::new_with_timeout(record, &record.kind, host.connect_timeout)?,
+    )))
+}

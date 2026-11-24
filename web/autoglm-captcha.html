@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoGLM 安全验证</title>
+  <style>
+    body { margin: 0; font: 14px system-ui, sans-serif; color: #334155; }
+    main { padding: 12px; text-align: center; }
+    button { padding: 10px 18px; border: 0; border-radius: 8px; background: #2563eb; color: white; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: wait; }
+    p { line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <main>
+    <p id="status">正在加载官方安全验证组件…</p>
+    <div id="captcha"></div>
+    <button id="continue" disabled>验证并继续授权</button>
+  </main>
+  <script>
+    'use strict';
+    const query = new URLSearchParams(location.search);
+    const sms = query.get('action') === 'send-code';
+    if (sms) document.getElementById('continue').textContent = '验证并发送验证码';
+    const config = { region: query.get('region'), prefix: query.get('prefix'), sceneId: query.get('scene_id') };
+    let pending = null;
+    let sequence = 0;
+    /** 仅向同源控制台传递本次验证状态，验证回执不进入 URL 或持久存储。 */
+    function notify(type, values = {}) {
+      parent.postMessage({ type, ...values }, location.origin);
+    }
+    /** 由控制台将 SDK 回执交给上游，等待真实业务结果再返回给 SDK。 */
+    function verify(proof) {
+      if (pending) return Promise.resolve({ captchaResult: false, bizResult: false });
+      return new Promise((resolve) => {
+        const id = ++sequence;
+        const timer = setTimeout(() => {
+          pending = null;
+          resolve({ captchaResult: false, bizResult: false });
+          document.getElementById('status').textContent = '请求超时，请重新验证。';
+        }, 35000);
+        pending = { id, timer, resolve };
+        notify('fmp-captcha-proof', { id, proof });
+      });
+    }
+    /** 回执结果必须来自当前同源父页面并匹配本次请求，重复或迟到响应忽略。 */
+    function receive(event) {
+      if (event.origin !== location.origin || event.source !== parent
+        || event.data?.type !== 'fmp-captcha-result' || event.data.id !== pending?.id) return;
+      const result = pending;
+      pending = null;
+      clearTimeout(result.timer);
+      const accepted = event.data.accepted === true;
+      document.getElementById('status').textContent = accepted ? sms ? '验证已通过，验证码已发送。' : '验证已通过，正在打开授权页面…' : event.data.message || '验证未通过，请重试。';
+      result.resolve({ captchaResult: accepted, bizResult: accepted });
+    }
+    /** 每个独立页面只初始化一次官方 SDK，重试通过 SDK 自己的刷新处理。 */
+    function initialize() {
+      window.initAliyunCaptcha({
+        SceneId: config.sceneId, mode: 'popup', element: '#captcha', button: '#continue', language: 'cn',
+        captchaVerifyCallback: verify,
+        /** SDK 处理完验证结果后才通知控制台切换页面。 */
+        onBizResultCallback: (accepted) => { if (accepted === true) notify('fmp-captcha-done'); },
+      });
+      document.getElementById('continue').disabled = false;
+      document.getElementById('status').textContent = '点击下方按钮，按官方提示完成安全验证。';
+      notify('fmp-captcha-ready');
+    }
+    window.addEventListener('message', receive);
+    if (!['cn', 'sgp', 'ga'].includes(config.region) || !config.prefix || !config.sceneId) {
+      document.getElementById('status').textContent = '安全验证配置无效，请返回控制台重新开始。';
+      notify('fmp-captcha-error', { message: '安全验证配置无效' });
+    } else {
+      window.AliyunCaptchaConfig = { region: config.region, prefix: config.prefix };
+      const script = document.createElement('script');
+      script.src = 'https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js';
+      script.async = true;
+      const timer = setTimeout(() => notify('fmp-captcha-error', { message: '安全验证组件加载超时，请检查网络后重试' }), 15000);
+      /** 加载失败只报告固定说明，不回显上游可能包含用户信息的正文。 */
+      script.onerror = () => { clearTimeout(timer); notify('fmp-captcha-error', { message: '安全验证组件加载失败，请检查网络后重试' }); };
+      /** SDK 准备完毕后初始化当前页，错误交给控制台展示。 */
+      script.onload = () => {
+        clearTimeout(timer);
+        try { initialize(); } catch { notify('fmp-captcha-error', { message: '安全验证组件初始化失败，请重新开始' }); }
+      };
+      document.head.append(script);
+    }
+  </script>
+</body>
+</html>

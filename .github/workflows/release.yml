@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - name: Build and package
+        shell: pwsh
+        run: |
+          $env:RUSTFLAGS = "-C strip=symbols --remap-path-prefix=$env:USERPROFILE=/build/host"
+          $env:CFLAGS = "/experimental:deterministic /pathmap:$env:USERPROFILE=/build/host"
+          $env:CXXFLAGS = $env:CFLAGS
+          cargo build --locked --release --bins
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python packaging/windows/package.py target/release/fakemodelproxy.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Move-Item ../fakemodelproxy-*-windows-x64.zip dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+        with:
+          targets: ${{ matrix.target }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and package
+        run: |
+          export RUSTFLAGS="-C strip=symbols --remap-path-prefix=$HOME=/build/host"
+          export CFLAGS="-ffile-prefix-map=$HOME=/build/host"
+          export CXXFLAGS="$CFLAGS"
+          cargo build --locked --release --bins --target "${{ matrix.target }}"
+          python3 packaging/macos/package.py "target/${{ matrix.target }}/release/fakemodelproxy"
+          mkdir -p dist
+          mv ../fakemodelproxy-*-macos-*.zip dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [windows-x64, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Verify tag matches Cargo.toml
+        run: |
+          python3 - <<'PY'
+          import os, sys, tomllib
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          with open("Cargo.toml", "rb") as handle:
+              version = tomllib.load(handle)["package"]["version"]
+          if tag != f"v{version}":
+              sys.exit(f"tag {tag} does not match Cargo.toml version {version}")
+          PY
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/*.zip --clobber
+          else
+            gh release create "$tag" dist/*.zip --title "$tag" --generate-notes
+          fi

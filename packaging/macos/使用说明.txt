@@ -1,0 +1,41 @@
+fakemodelproxy — macOS 便携版（{ARCH}，版本见 build-info.txt）
+
+使用方法
+1. 把 ZIP 完整解压到可写目录。
+2. 首次启动：在 Finder 中右键 start.command，选择“打开”，再确认“打开”。
+   若被拦截，可在终端对解压目录执行：
+   xattr -dr com.apple.quarantine <解压后的目录>
+3. 保留终端窗口，浏览器打开 http://127.0.0.1:8317/，添加后端及账号。
+4. 在调用客户端中填写 OpenAI 兼容 Base URL：
+   http://127.0.0.1:8317/v1
+   模型名称以管理界面或 /v1/models 返回的列表为准。
+5. 在终端按 Ctrl+C 停止服务。
+
+系统要求
+- macOS 11 及以上；本包为 {ARCH} 架构，请选择匹配的版本。
+- 无需安装 Rust、Go 或 Node.js。
+- 管理页面已嵌入可执行文件。
+- 本包未做代码签名和公证，仅从可信来源获取。
+
+数据与升级
+- start.command 将数据固定保存到同目录的 data 文件夹。
+- 数据库为 data/fakemodelproxy.db，请求记录为 data/requests.jsonl。
+- 首次运行自动创建数据目录；本压缩包没有预置账号和数据库。
+- 备份时先停止程序，再备份整个 data 文件夹。
+- 升级时先停止程序，保留 data 文件夹，替换可执行文件和启动脚本。
+- 直接运行可执行文件时，数据默认保存到当前工作目录的 .fakemodelproxy。
+
+可选环境变量
+- FMP_LISTEN：监听地址，默认 127.0.0.1:8317。
+- FMP_API_KEY：调用密钥，本地默认不校验。
+- FMP_ADMIN_KEY：管理密钥，默认复用调用密钥。
+- FMP_LOG：日志级别，默认 info。
+- FMP_MAX_REQUEST_BODY_MB：请求体上限，默认 64 MiB。
+- FMP_RECORD_CAPACITY：保留的请求记录数量。
+  start.command 固定使用包内 data 目录；自定义 FMP_DATA_DIR 时直接运行可执行文件。
+
+常见问题
+- 提示“无法验证开发者”：按使用方法第 2 步右键打开或清除隔离属性。
+- 端口被占用：关闭另一个实例，或设置 FMP_LISTEN 后重新启动。
+- 提示“无法打开，因为 Apple 无法检查其是否包含恶意软件”：
+  在“系统设置 → 隐私与安全性”中允许，或清除隔离属性后重试。
